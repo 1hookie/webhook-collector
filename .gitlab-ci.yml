@@ -1,0 +1,29 @@
+image: golang:1.26
+
+variables:
+  GOFLAGS: -mod=vendor
+
+stages:
+  - check
+
+gofmt:
+  stage: check
+  script:
+    - gofmt_files=$(gofmt -l . | grep -v '^vendor/' || true)
+    - test -z "$gofmt_files"
+
+lint:
+  stage: check
+  script:
+    - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+    - golangci-lint run
+
+build:
+  stage: check
+  script:
+    - go build ./...
+
+test:
+  stage: check
+  script:
+    - go test ./...
