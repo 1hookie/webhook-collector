@@ -16,4 +16,4 @@ issues:
       linters:
         - errcheck
         - bodyclose
-        
+
