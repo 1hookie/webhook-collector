@@ -16,3 +16,7 @@ func main() {
 
 	log.Fatal(e.Start(":8080"))
 }
+
+// curl -i -X POST http://localhost:8080/api/v1/hooks
+// curl -i http://localhost:8080/wh/1
+// curl -i -X PUT "http://localhost:8080/wh/1?x=42"
