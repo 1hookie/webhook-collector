@@ -3,16 +3,16 @@ package model
 import "time"
 
 type Hook struct {
-	Id         int       `json:"id"`
-	Created_at time.Time `json:"time"`
-	IsActive   *bool     `json:"status"`
+	ID        string    `json:"id"`
+	CreatedAt time.Time `json:"time"`
+	IsActive  *bool     `json:"is_active,omitempty"`
 }
 
-type WebHookRequest struct {
-	Method      string            `json:"method"`
-	Path        string            `json:"path"`
-	Headers     map[string]string `json:"headers"`
-	Body        string            `json:"body"`
-	Ip          string            `json:"ip"`
-	Recieved_at time.Time         `json:"recieved_at"`
+type WebhookRequest struct {
+	Method     string            `json:"method"`
+	Path       string            `json:"path"`
+	Headers    map[string]string `json:"headers"`
+	Body       string            `json:"body"`
+	IP         string            `json:"ip"`
+	ReceivedAt time.Time         `json:"recieved_at"`
 }

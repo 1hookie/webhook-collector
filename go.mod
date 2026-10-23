@@ -2,7 +2,10 @@ module webhooks
 
 go 1.26
 
-require github.com/labstack/echo/v4 v4.16.0
+require (
+	github.com/google/uuid v1.6.0
+	github.com/labstack/echo/v4 v4.16.0
+)
 
 require (
 	github.com/labstack/gommon v0.5.0 // indirect
