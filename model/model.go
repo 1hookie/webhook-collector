@@ -14,5 +14,9 @@ type WebhookRequest struct {
 	Headers    map[string]string `json:"headers"`
 	Body       string            `json:"body"`
 	IP         string            `json:"ip"`
-	ReceivedAt time.Time         `json:"recieved_at"`
+	ReceivedAt time.Time         `json:"received_at"`
+}
+
+func (h Hook) URL(baseURL string) string {
+	return baseURL + "/wh/" + h.ID
 }

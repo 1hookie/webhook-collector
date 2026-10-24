@@ -7,17 +7,28 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 
 	"webhooks/controller"
+	"webhooks/storage"
 )
 
 func main() {
+	store, err := storage.NewStore(100)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	h, err := controller.NewHandler(store)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	e := echo.New()
 
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	e.GET("/api/v1/hooks/:id/requests", controller.GetRequests)
-	e.POST("/api/v1/hooks", controller.CreateHook)
-	e.Any("/wh/:hookId", controller.CatchHook)
+	e.GET("/api/v1/hooks/:id/requests", h.GetRequests)
+	e.POST("/api/v1/hooks", h.CreateHook)
+	e.Any("/wh/:hookId", h.CatchHook)
 
 	log.Fatal(e.Start(":8080"))
 }

@@ -1,23 +1,29 @@
 package controller
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 
 	"webhooks/model"
+	"webhooks/storage"
 )
 
-var (
-	mu       sync.Mutex
-	hooks    = map[string]model.Hook{}             // id хука -> хук
-	requests = map[string][]model.WebhookRequest{} // id хука -> его запросы
-)
+type Handler struct {
+	store *storage.Store
+}
+
+func NewHandler(store *storage.Store) (*Handler, error) {
+	if store == nil {
+		return nil, errors.New("store cannot be nil")
+	}
+	return &Handler{store: store}, nil
+}
 
 type CreateHookResponse struct {
 	Status bool   `json:"status"`
@@ -25,8 +31,15 @@ type CreateHookResponse struct {
 	URL    string `json:"url"`
 }
 
+func hookNotFound(c echo.Context) error {
+	return c.JSON(http.StatusNotFound, echo.Map{
+		"status": false,
+		"error":  "hook not found",
+	})
+}
+
 // CreateHook — POST /api/v1/hooks
-func CreateHook(c echo.Context) error {
+func (h *Handler) CreateHook(c echo.Context) error {
 	active := true
 	hook := model.Hook{
 		ID:        uuid.NewString(),
@@ -34,22 +47,18 @@ func CreateHook(c echo.Context) error {
 		IsActive:  &active,
 	}
 
-	mu.Lock()
-	hooks[hook.ID] = hook
-	requests[hook.ID] = []model.WebhookRequest{}
-	mu.Unlock()
-
-	url := c.Scheme() + "://" + c.Request().Host + "/wh/" + hook.ID
+	h.store.CreateHook(hook)
+	baseURL := c.Scheme() + "://" + c.Request().Host
 
 	return c.JSON(http.StatusCreated, CreateHookResponse{
 		Status: true,
 		ID:     hook.ID,
-		URL:    url,
+		URL:    hook.URL(baseURL),
 	})
 }
 
 // собирает запрос, сохраняет, отвечает 200.
-func CatchHook(c echo.Context) error {
+func (h *Handler) CatchHook(c echo.Context) error {
 	hookID := c.Param("hookId")
 	r := c.Request()
 
@@ -76,42 +85,23 @@ func CatchHook(c echo.Context) error {
 		ReceivedAt: time.Now(),
 	}
 
-	mu.Lock()
-	_, ok := hooks[hookID]
-	if ok {
-		requests[hookID] = append(requests[hookID], req)
-	}
-	mu.Unlock()
-
-	if !ok {
-		return c.JSON(http.StatusNotFound, echo.Map{
-			"status": false,
-			"error":  "hook not found",
-		})
+	if err := h.store.AddRequst(hookID, req); err != nil {
+		if errors.Is(err, storage.ErrHookNotFound) {
+			return hookNotFound(c)
+		}
+		return err
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{"status": true})
 }
 
-func GetRequests(c echo.Context) error {
-	hookID := c.Param("id")
-
-	mu.Lock()
-	_, ok := hooks[hookID]
-	var result []model.WebhookRequest
-	if ok {
-		src := requests[hookID]
-		result = make([]model.WebhookRequest, len(src))
-		copy(result, src)
+func (h *Handler) GetRequests(c echo.Context) error {
+	reqs, err := h.store.Requests(c.Param("id"))
+	if err != nil {
+		if errors.Is(err, storage.ErrHookNotFound) {
+			return hookNotFound(c)
+		}
+		return err
 	}
-	mu.Unlock()
-
-	if !ok {
-		return c.JSON(http.StatusNotFound, echo.Map{
-			"status": false,
-			"error":  "hook not found",
-		})
-	}
-
-	return c.JSONPretty(http.StatusOK, result, " ")
+	return c.JSON(http.StatusOK, reqs)
 }
