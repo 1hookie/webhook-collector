@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 
 	"webhooks/controller"
 )
@@ -11,6 +12,10 @@ import (
 func main() {
 	e := echo.New()
 
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
+	e.GET("/api/v1/hooks/:id/requests", controller.GetRequests)
 	e.POST("/api/v1/hooks", controller.CreateHook)
 	e.Any("/wh/:hookId", controller.CatchHook)
 

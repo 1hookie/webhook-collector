@@ -92,3 +92,26 @@ func CatchHook(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, echo.Map{"status": true})
 }
+
+func GetRequests(c echo.Context) error {
+	hookID := c.Param("id")
+
+	mu.Lock()
+	_, ok := hooks[hookID]
+	var result []model.WebhookRequest
+	if ok {
+		src := requests[hookID]
+		result = make([]model.WebhookRequest, len(src))
+		copy(result, src)
+	}
+	mu.Unlock()
+
+	if !ok {
+		return c.JSON(http.StatusNotFound, echo.Map{
+			"status": false,
+			"error":  "hook not found",
+		})
+	}
+
+	return c.JSONPretty(http.StatusOK, result, " ")
+}
