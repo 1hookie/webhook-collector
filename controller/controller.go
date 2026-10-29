@@ -15,14 +15,19 @@ import (
 )
 
 type Handler struct {
-	store *storage.Store
+	store   *storage.Store
+	baseURL string
 }
 
-func NewHandler(store *storage.Store) (*Handler, error) {
-	if store == nil {
-		return nil, errors.New("store cannot be nil")
+// конструктор контроллера.
+func NewHandler(store *storage.Store, baseURL string) (*Handler, error) {
+	switch {
+	case store == nil:
+		return nil, errors.New("store is nil")
+	case baseURL == "":
+		return nil, errors.New("baseURL is empty")
 	}
-	return &Handler{store: store}, nil
+	return &Handler{store: store, baseURL: baseURL}, nil
 }
 
 type CreateHookResponse struct {
@@ -48,12 +53,11 @@ func (h *Handler) CreateHook(c echo.Context) error {
 	}
 
 	h.store.CreateHook(hook)
-	baseURL := c.Scheme() + "://" + c.Request().Host
 
 	return c.JSON(http.StatusCreated, CreateHookResponse{
 		Status: true,
 		ID:     hook.ID,
-		URL:    hook.URL(baseURL),
+		URL:    hook.URL(h.baseURL),
 	})
 }
 

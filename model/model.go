@@ -16,7 +16,3 @@ type WebhookRequest struct {
 	IP         string            `json:"ip"`
 	ReceivedAt time.Time         `json:"received_at"`
 }
-
-func (h Hook) URL(baseURL string) string {
-	return baseURL + "/wh/" + h.ID
-}
