@@ -12,7 +12,6 @@ func computeTop3() []string {
 	return []string{"apple", "banana", "cherry"}
 }
 
-// TODO: сейчас тело считается 8 раз — заставьте его посчитать ровно один раз
 var top3 = sync.OnceValue(computeTop3)
 
 func main() {
