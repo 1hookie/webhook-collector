@@ -13,7 +13,6 @@ var (
 	words      sync.Map // слово -> true (зарегистрировано)
 )
 
-// Register: true, если слово зарегистрировано впервые.
 func Register(w string) bool {
 	_, loaded := words.LoadOrStore(w, true)
 	return !loaded
