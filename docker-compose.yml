@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: hookcatcher-postgres
+    environment:
+      POSTGRES_DB: hookcatcher
+      POSTGRES_USER: hookcatcher
+      POSTGRES_PASSWORD: hookcatcher
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data  
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hookcatcher -d hookcatcher"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+
+  # RabbitMQ понадобится на следующем этапе для асинхронного сохранения вебхуков.
+  # Сейчас он запускается заранее, чтобы подготовить инфраструктуру.
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: hookcatcher-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: hookcatcher
+      RABBITMQ_DEFAULT_PASS: hookcatcher
+    ports:
+      - "5672:5672"    
+      - "15672:15672"   
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  rabbitmq-data:

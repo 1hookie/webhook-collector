@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 
 	"webhooks/config"
+	"webhooks/conn"
 	"webhooks/controller"
 	"webhooks/storage"
 )
@@ -17,6 +18,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	db, err := conn.NewConn(cfg.DB)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 
 	store, err := storage.NewStore(100)
 	if err != nil {
