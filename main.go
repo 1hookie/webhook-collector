@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 
@@ -14,35 +15,45 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	cfg, err := config.NewConfig()
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("load config: %w", err)
 	}
 
 	db, err := conn.NewConn(cfg.DB)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("connect to database: %w", err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("close database: %v", err)
+		}
+	}()
 
 	store, err := storage.NewStore(100)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("create store: %w", err)
 	}
 
-	h, err := controller.NewHandler(store, cfg.BaseURL)
+	handler, err := controller.NewHandler(store, cfg.BaseURL)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("create handler: %w", err)
 	}
 
 	e := echo.New()
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 
-	e.POST("/api/v1/hooks", h.CreateHook)
-	e.GET("/api/v1/hooks/:id/requests", h.GetRequests)
-	e.Any("/wh/:hookId", h.CatchHook)
+	e.POST("/api/v1/hooks", handler.CreateHook)
+	e.GET("/api/v1/hooks/:id/requests", handler.GetRequests)
+	e.Any("/wh/:hookId", handler.CatchHook)
 
 	log.Printf("listening on :%d, base_url=%s", cfg.Port, cfg.BaseURL)
-	log.Fatal(e.Start(":" + strconv.Itoa(cfg.Port)))
+	return e.Start(":" + strconv.Itoa(cfg.Port))
 }
