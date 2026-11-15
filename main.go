@@ -11,7 +11,7 @@ import (
 	"webhooks/config"
 	"webhooks/conn"
 	"webhooks/controller"
-	"webhooks/storage"
+	"webhooks/repository"
 )
 
 func main() {
@@ -36,12 +36,8 @@ func run() error {
 		}
 	}()
 
-	store, err := storage.NewStore(100)
-	if err != nil {
-		return fmt.Errorf("create store: %w", err)
-	}
-
-	handler, err := controller.NewHandler(store, cfg.BaseURL)
+	repo := repository.NewRepo(db)
+	handler, err := controller.NewHandler(repo, cfg.BaseURL)
 	if err != nil {
 		return fmt.Errorf("create handler: %w", err)
 	}

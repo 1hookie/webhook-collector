@@ -11,23 +11,23 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"webhooks/model"
-	"webhooks/storage"
+	"webhooks/repository"
 )
 
 type Handler struct {
-	store   *storage.Store
+	repo    *repository.Repo
 	baseURL string
 }
 
 // конструктор контроллера.
-func NewHandler(store *storage.Store, baseURL string) (*Handler, error) {
+func NewHandler(repo *repository.Repo, baseURL string) (*Handler, error) {
 	switch {
-	case store == nil:
-		return nil, errors.New("store is nil")
+	case repo == nil:
+		return nil, errors.New("repo is nil")
 	case baseURL == "":
 		return nil, errors.New("baseURL is empty")
 	}
-	return &Handler{store: store, baseURL: baseURL}, nil
+	return &Handler{repo: repo, baseURL: baseURL}, nil
 }
 
 type CreateHookResponse struct {
@@ -52,7 +52,9 @@ func (h *Handler) CreateHook(c echo.Context) error {
 		IsActive:  &active,
 	}
 
-	h.store.CreateHook(hook)
+	if err := h.repo.CreateHook(c.Request().Context(), hook); err != nil {
+		return err
+	}
 
 	return c.JSON(http.StatusCreated, CreateHookResponse{
 		Status: true,
@@ -64,6 +66,15 @@ func (h *Handler) CreateHook(c echo.Context) error {
 // собирает запрос, сохраняет, отвечает 200.
 func (h *Handler) CatchHook(c echo.Context) error {
 	hookID := c.Param("hookId")
+
+	exists, err := h.repo.HookExists(c.Request().Context(), hookID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return hookNotFound(c)
+	}
+
 	r := c.Request()
 
 	body, err := io.ReadAll(r.Body)
@@ -89,10 +100,7 @@ func (h *Handler) CatchHook(c echo.Context) error {
 		ReceivedAt: time.Now(),
 	}
 
-	if err := h.store.AddRequst(hookID, req); err != nil {
-		if errors.Is(err, storage.ErrHookNotFound) {
-			return hookNotFound(c)
-		}
+	if err := h.repo.AddRequest(c.Request().Context(), hookID, req); err != nil {
 		return err
 	}
 
@@ -100,9 +108,9 @@ func (h *Handler) CatchHook(c echo.Context) error {
 }
 
 func (h *Handler) GetRequests(c echo.Context) error {
-	reqs, err := h.store.Requests(c.Param("id"))
+	reqs, err := h.repo.Requests(c.Request().Context(), c.Param("id"))
 	if err != nil {
-		if errors.Is(err, storage.ErrHookNotFound) {
+		if errors.Is(err, repository.ErrHookNotFound) {
 			return hookNotFound(c)
 		}
 		return err
