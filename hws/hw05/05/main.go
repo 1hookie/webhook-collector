@@ -13,10 +13,7 @@ type Player struct {
 
 var leader atomic.Pointer[Player]
 
-// tryWin: игрок выходит в лидеры только если текущий лидер слабее (или лидера нет).
 func tryWin(p *Player) {
-	// TODO: цикл CAS: leader.Load → сравнить → leader.CompareAndSwap;
-	// если лидер поменялся под ногами — попробуйте снова
 	for cur := leader.Load(); cur == nil || p.Score > cur.Score; {
 		if leader.CompareAndSwap(cur, p) {
 			return
