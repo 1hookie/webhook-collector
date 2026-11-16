@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"webhooks/model"
+	"webhooks/entity"
 )
 
 var ErrHookNotFound = errors.New("hook not found")
@@ -22,7 +22,7 @@ func NewRepo(db *sql.DB) *Repo {
 	return &Repo{db: db}
 }
 
-func (r *Repo) CreateHook(ctx context.Context, hook model.Hook) error {
+func (r *Repo) CreateHook(ctx context.Context, hook entity.Hook) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO hooks (id, created_at) VALUES ($1, $2)`,
 		hook.ID, hook.CreatedAt,
@@ -49,29 +49,23 @@ func (r *Repo) HookExists(ctx context.Context, id string) (bool, error) {
 	return exists, nil
 }
 
-func (r *Repo) AddRequest(
-	ctx context.Context,
-	hookID string,
-	req model.WebhookRequest,
-) error {
-	headers, err := json.Marshal(req.Headers)
-	if err != nil {
-		return fmt.Errorf("encode headers: %w", err)
-	}
-
-	_, err = r.db.ExecContext(ctx,
-		`INSERT INTO requests (hook_id, method, path, headers, body, ip, received_at)
-	VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)`, hookID, req.Method, req.Path, string(headers), req.Body, req.IP, req.ReceivedAt)
+func (r *Repo) AddRequest(ctx context.Context, req entity.WebhookRequest) error {
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO requests
+			(hook_id, method, path, headers, body, ip, received_at)
+		VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7)
+	`, req.HookID, req.Method, req.Path, string(req.Headers),
+		req.Body, req.IP, req.ReceivedAt)
 	if err != nil {
 		return fmt.Errorf("save request: %w", err)
 	}
 	return nil
 }
 
-func (r *Repo) Requests(
+func (r *Repo) ListRequests(
 	ctx context.Context,
 	hookID string,
-) (result []model.WebhookRequest, err error) {
+) (result []entity.WebhookRequest, err error) {
 	exists, err := r.HookExists(ctx, hookID)
 	if err != nil {
 		return nil, err
@@ -81,10 +75,10 @@ func (r *Repo) Requests(
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT method, path, headers, body, ip, received_at
+		SELECT id, hook_id, method, path, headers, body, ip, received_at
 		FROM requests
 		WHERE hook_id = $1
-		ORDER BY id ASC
+		ORDER BY id ASC	
 	`, hookID)
 	if err != nil {
 		return nil, fmt.Errorf("get requests: %w", err)
@@ -95,20 +89,18 @@ func (r *Repo) Requests(
 		}
 	}()
 
-	result = make([]model.WebhookRequest, 0)
+	result = make([]entity.WebhookRequest, 0)
 	for rows.Next() {
-		var req model.WebhookRequest
+		var req entity.WebhookRequest
 		var headers []byte
 
 		if scanErr := rows.Scan(
-			&req.Method, &req.Path, &headers,
+			&req.ID, &req.HookID, &req.Method, &req.Path, &headers,
 			&req.Body, &req.IP, &req.ReceivedAt,
 		); scanErr != nil {
 			return nil, fmt.Errorf("scan request: %w", scanErr)
 		}
-		if jsonErr := json.Unmarshal(headers, &req.Headers); jsonErr != nil {
-			return nil, fmt.Errorf("decode headers: %w", jsonErr)
-		}
+		req.Headers = json.RawMessage(headers)
 
 		result = append(result, req)
 	}

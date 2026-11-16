@@ -12,6 +12,7 @@ import (
 	"webhooks/conn"
 	"webhooks/controller"
 	"webhooks/repository"
+	"webhooks/service"
 )
 
 func main() {
@@ -37,7 +38,13 @@ func run() error {
 	}()
 
 	repo := repository.NewRepo(db)
-	handler, err := controller.NewHandler(repo, cfg.BaseURL)
+
+	svc, err := service.NewService(repo)
+	if err != nil {
+		return fmt.Errorf("create service: %w", err)
+	}
+
+	handler, err := controller.NewHandler(svc, cfg.BaseURL)
 	if err != nil {
 		return fmt.Errorf("create handler: %w", err)
 	}

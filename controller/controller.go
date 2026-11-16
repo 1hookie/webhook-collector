@@ -11,23 +11,23 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"webhooks/model"
-	"webhooks/repository"
+	"webhooks/service"
 )
 
 type Handler struct {
-	repo    *repository.Repo
 	baseURL string
+	svc     *service.Service
 }
 
 // конструктор контроллера.
-func NewHandler(repo *repository.Repo, baseURL string) (*Handler, error) {
+func NewHandler(svc *service.Service, baseURL string) (*Handler, error) {
 	switch {
-	case repo == nil:
-		return nil, errors.New("repo is nil")
+	case svc == nil:
+		return nil, errors.New("service is nil")
 	case baseURL == "":
 		return nil, errors.New("baseURL is empty")
 	}
-	return &Handler{repo: repo, baseURL: baseURL}, nil
+	return &Handler{svc: svc, baseURL: baseURL}, nil
 }
 
 type CreateHookResponse struct {
@@ -52,7 +52,7 @@ func (h *Handler) CreateHook(c echo.Context) error {
 		IsActive:  &active,
 	}
 
-	if err := h.repo.CreateHook(c.Request().Context(), hook); err != nil {
+	if err := h.svc.CreateHook(c.Request().Context(), hook); err != nil {
 		return err
 	}
 
@@ -67,7 +67,7 @@ func (h *Handler) CreateHook(c echo.Context) error {
 func (h *Handler) CatchHook(c echo.Context) error {
 	hookID := c.Param("hookId")
 
-	exists, err := h.repo.HookExists(c.Request().Context(), hookID)
+	exists, err := h.svc.HookExists(c.Request().Context(), hookID)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (h *Handler) CatchHook(c echo.Context) error {
 		ReceivedAt: time.Now(),
 	}
 
-	if err := h.repo.AddRequest(c.Request().Context(), hookID, req); err != nil {
+	if err := h.svc.AddRequest(c.Request().Context(), hookID, req); err != nil {
 		return err
 	}
 
@@ -108,9 +108,9 @@ func (h *Handler) CatchHook(c echo.Context) error {
 }
 
 func (h *Handler) GetRequests(c echo.Context) error {
-	reqs, err := h.repo.Requests(c.Request().Context(), c.Param("id"))
+	reqs, err := h.svc.ListRequests(c.Request().Context(), c.Param("id"))
 	if err != nil {
-		if errors.Is(err, repository.ErrHookNotFound) {
+		if errors.Is(err, service.ErrHookNotFound) {
 			return hookNotFound(c)
 		}
 		return err
